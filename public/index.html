@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>BBStreamer</title>
+  <link rel="stylesheet" href="/app.css">
+  <script src="/app.js" type="module"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="shell header-inner">
+      <a href="/" class="brand"><span class="brand-mark" aria-hidden="true"><span></span></span>BBStreamer</a>
+      <nav aria-label="Main">
+        <button type="button" id="show-overview" aria-current="page">Overview</button>
+        <button type="button" id="show-settings">Settings</button>
+      </nav>
+      <span class="host-status"><i></i>Local controller</span>
+    </div>
+  </header>
+
+  <main class="shell">
+    <div class="notice" id="notice" role="status" hidden></div>
+    <section id="overview" aria-labelledby="overview-title">
+      <div class="page-head">
+        <div><h1 id="overview-title">Print streams</h1><p id="automation-summary">Checking controller status…</p></div>
+        <button type="button" class="primary" id="configure">Configure streaming</button>
+      </div>
+      <div class="printer-grid" id="printer-grid"></div>
+      <div class="overview-bottom">
+        <section class="panel list-panel" aria-labelledby="recent-title">
+          <h2 id="recent-title">Recent prints</h2>
+          <ul class="data-list" id="recent"></ul>
+        </section>
+        <section class="panel list-panel" aria-labelledby="activity-title">
+          <h2 id="activity-title">Activity</h2>
+          <ul class="data-list" id="activity"></ul>
+        </section>
+      </div>
+    </section>
+
+    <section id="settings" aria-labelledby="settings-title" hidden>
+      <div class="page-head"><div><h1 id="settings-title">Settings</h1><p>Connect your printers, broadcast channel, and Discord bot.</p></div></div>
+      <form id="config">
+        <div class="settings-grid">
+          <fieldset class="panel">
+            <legend>Printers</legend>
+            <div class="settings-content" id="printer-settings"></div>
+          </fieldset>
+          <div class="stack">
+            <fieldset class="panel">
+              <legend>YouTube</legend>
+              <div class="settings-content">
+                <p id="google-status">No channel connected</p>
+                <label>Google Desktop OAuth client
+                  <input type="file" id="oauth-file" accept=".json,application/json">
+                </label>
+                <button type="button" id="youtube-connect">Connect YouTube</button>
+                <small id="youtube-signin-location" hidden>Google sign-in opens in the browser on the BBStreamer PC.</small>
+                <label>Broadcast visibility
+                  <select name="privacy"><option value="unlisted">Unlisted</option><option value="private">Private</option><option value="public">Public</option></select>
+                </label>
+                <label>Replay playlist
+                  <input name="youtubePlaylistId" type="text" maxlength="512" placeholder="YouTube playlist link or ID (optional)">
+                </label>
+                <small>Use an Unlisted or Private playlist from the connected channel.</small>
+                <label class="check"><input type="checkbox" name="automatic"> Start broadcasts automatically</label>
+              </div>
+            </fieldset>
+            <fieldset class="panel">
+              <legend>Discord</legend>
+              <div class="settings-content">
+                <label>Channel ID<input name="discordChannel" type="text" inputmode="numeric" maxlength="20" placeholder="Optional"></label>
+                <label>Bot token<input name="discordToken" type="password" maxlength="300" autocomplete="new-password"></label>
+                <button type="button" id="discord-check">Check bot connection</button>
+              </div>
+            </fieldset>
+          </div>
+          <fieldset class="panel wide">
+            <legend>Video and performance</legend>
+            <div class="settings-content">
+              <div class="field-grid video-fields">
+                <label>Resolution<select name="resolution"><option value="720p">720p</option><option value="1080p">1080p</option></select></label>
+                <label>Capture frames per second<input name="captureFps" type="number" min="5" max="30" required></label>
+                <label>Video bitrate (kbps)<input name="bitrate" type="number" min="1000" max="20000" step="1" required></label>
+                <label>Simultaneous streams<select name="maxStreams"><option value="1">One at a time</option><option value="2">Up to two</option></select></label>
+                <label>H.264 encoder<select name="encoder"><option value="auto">Automatic</option><option value="h264_nvenc">NVIDIA NVENC</option><option value="h264_qsv">Intel Quick Sync</option><option value="h264_amf">AMD AMF</option><option value="libx264">Software (libx264)</option></select></label>
+              </div>
+              <details>
+                <summary>Executable paths and WebGL</summary>
+                <div class="field-grid advanced">
+                  <label>FFmpeg executable<input name="ffmpeg" type="text" maxlength="512" placeholder="Find FFmpeg on PATH"></label>
+                  <label>Chromium executable<input name="chromium" type="text" maxlength="512" placeholder="Find installed Chrome or Edge"></label>
+                </div>
+                <label class="check"><input type="checkbox" name="softwareWebgl"> Use software WebGL for 3D rendering</label>
+              </details>
+            </div>
+          </fieldset>
+        </div>
+        <div class="form-actions"><button type="submit" class="primary">Save settings</button></div>
+      </form>
+    </section>
+  </main>
+
+  <dialog id="preview">
+    <div class="dialog-head"><h2 id="preview-title">Overlay preview</h2><form method="dialog"><button>Close</button></form></div>
+    <p id="preview-status" role="status"></p>
+    <img id="preview-image" alt="Captured BambuBoard live scene" hidden>
+  </dialog>
+
+  <template id="printer-card">
+    <article class="panel printer-card">
+      <div class="card-top">
+        <div class="printer-icon" aria-hidden="true"><i></i></div>
+        <div class="printer-heading"><h2></h2><p class="connection"></p></div>
+        <span class="pill"></span>
+      </div>
+      <div class="card-body">
+        <h3 class="print-name"></h3>
+        <div class="progress-row"><span class="print-state"></span><strong class="percent"></strong></div>
+        <progress max="100" value="0" aria-label="Print progress"></progress>
+        <dl class="print-details"><div><dt>Layer</dt><dd class="layer"></dd></div><div><dt>Remaining</dt><dd class="remaining"></dd></div><div><dt>Encoder</dt><dd class="encoder"></dd></div></dl>
+        <p class="card-health" hidden></p><p class="card-error" hidden></p>
+      </div>
+      <div class="card-actions">
+        <button type="button" class="preview-button">Preview capture</button>
+        <a class="overlay-link" target="_blank" rel="noopener noreferrer">Open overlay</a>
+        <a class="watch-link" target="_blank" rel="noopener noreferrer" hidden>Watch on YouTube</a>
+      </div>
+    </article>
+  </template>
+  <template id="printer-form">
+    <section class="printer-form">
+      <h3></h3>
+      <div class="field-grid">
+        <label>Display name<input data-field="name" maxlength="40"></label>
+        <label>Printer IP or hostname<input data-field="host" maxlength="253" placeholder="192.168.1.50"></label>
+        <label>Serial number<input data-field="serial" maxlength="40" autocomplete="off"></label>
+        <label>LAN access code<input data-field="accessCode" type="password" maxlength="128" autocomplete="new-password"></label>
+      </div>
+      <label>BambuBoard /live URL<input data-field="overlay" type="url" required></label>
+      <details>
+        <summary>MQTT connection options</summary>
+        <div class="field-grid advanced">
+          <label>MQTT port<input data-field="port" type="number" min="1" max="65535" required></label>
+          <label>SHA-256 certificate fingerprint<input data-field="fingerprint" maxlength="96" placeholder="Optional"></label>
+        </div>
+      </details>
+    </section>
+  </template>
+</body>
+</html>
